@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div>
+      <canvas id="canvas" width="640" width="480">
+        not support canvas
+      </canvas>
+      <script>
+        // 虽然是画二位物体 但仍然是在三维空间内画 所以依然要创建「着色器」
+        // 着色器是使用「OpenGL ES着色语言（GLSL）」编写的程序，它携带着绘制形状的顶点信息以及构造绘制在屏幕上像素的所需数据
+        // 也就是它负责记录着像素点的「位置和颜色」
+
+        // 顶点着色器会在形状的每个顶点运行，讲输入顶点从原始坐标系转换到WebGL使用的缩放空间clipspace坐标系，-1.0-1.0不考虑纵横比，实际尺寸或其他因素
+        const canvas = document.getElementById("canvas")
+        const gl = canvas.getContext("webgl")
+
+      </script>
+    </div>
+  </body>
+</html>

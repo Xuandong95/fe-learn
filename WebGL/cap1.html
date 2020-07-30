@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div>
+      <canvas id="canvas" width="640" height="480">
+        你的浏览器暂不支持或者禁用了canvas元素
+      </canvas>
+    </div>
+    <script id="2d-vertex-shader" type="x-shader/x-vertex">
+      attribute vec2 a_position;
+      
+      void main() {
+        gl_Position = vec4(a_position, 0, 1);
+      }
+    </script>   
+    <script id="2d-fragment-shader" type="x-shader/x-fragment">
+      void main() {
+        gl_FragColor = vec4(0, 1, 0, 1);  // green
+      }
+    </script>
+    <script>
+
+      function main() {
+        var canvas = document.getElementById("canvas")
+        // 初始化webGL上下文  获取WebGLRenderingContext
+        var gl = canvas.getContext("webgl")
+        // 确定webgl的支持
+        if(!gl){
+          alert("暂不支持webgl")
+          return
+        }
+        // 使用不透明的黑色清楚所有图像
+        gl.clearColor(0, 0, 0, 1)
+        // 使用上面指定的颜色清楚缓冲区
+        gl.clear(gl.COLOR_BUFFER_BIT)
+      }
+
+      main()
+
+    </script>
+  </body>
+</html>
