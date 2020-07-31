@@ -2,18 +2,220 @@
 <html>
   <body>
     <div>
-      <canvas id="canvas" width="640" width="480">
+      <canvas id="canvas" width="640" height="480">
         not support canvas
       </canvas>
+      <script src="./gl-matrix.js"></script>
+
       <script>
-        // 虽然是画二位物体 但仍然是在三维空间内画 所以依然要创建「着色器」
-        // 着色器是使用「OpenGL ES着色语言（GLSL）」编写的程序，它携带着绘制形状的顶点信息以及构造绘制在屏幕上像素的所需数据
-        // 也就是它负责记录着像素点的「位置和颜色」
 
-        // 顶点着色器会在形状的每个顶点运行，讲输入顶点从原始坐标系转换到WebGL使用的缩放空间clipspace坐标系，-1.0-1.0不考虑纵横比，实际尺寸或其他因素
-        const canvas = document.getElementById("canvas")
-        const gl = canvas.getContext("webgl")
+        main();
 
+        function main() {
+          // 虽然是画二位物体 但仍然是在三维空间内画 所以依然要创建「着色器」
+
+          const canvas = document.querySelector('#canvas');
+          const gl = canvas.getContext('webgl');
+
+          if (!gl) {
+            alert('Unable to initialize WebGL. Your browser or machine may not support it.');
+            return;
+          }
+
+
+          // 着色器是使用「OpenGL ES着色语言（GLSL）」编写的程序，它携带着绘制形状的顶点信息以及构造绘制在屏幕上像素的所需数据
+          // 也就是它负责记录着像素点的「位置和颜色」
+
+          // 顶点着色器会在形状的每个顶点运行，讲输入顶点从原始坐标系转换到WebGL使用的缩放空间clipspace坐标系，-1.0-1.0不考虑纵横比，实际尺寸或其他因素
+          // 决定哪个纹理坐标可以应用于顶点，通过法线来确定应用到顶点的光照因子等
+          // 最后的值给到gl_Position
+          const vsSource = `
+            attribute vec4 aVertexPosition;
+            uniform mat4 uModelViewMatrix;
+            uniform mat4 uProjectionMatrix;
+
+            void main() {
+              gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+            }
+          `;
+
+          // 片段着色器在顶点着色器处理完图形顶点后，会被要绘制的每个图形的每个像素点调用一次。
+          // 职责是确定像素的颜色，获取纹理颜色，将适当光照应用于颜色
+          // 颜色存储在特殊变量gl_FragColor中
+          const fsSource = `
+            void main() {
+              gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            }
+          `;
+
+
+          const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+          // 查找WebGL返回分配的输入位置。我们有一个属性和两个uniforms
+          // 属性从缓冲区接收值。顶点着色器的每次迭代都从分配给该属性的缓冲区接收下一个值。
+          // uniforms类似于JavaScript全局变量。它们在着色器的所有迭代中保持相同的值。
+          // 由于属性和统一的位置是特定于单个着色器程序的，因此我们将它们存储在一起以使它们易于传递
+          const programInfo = {
+            program: shaderProgram,
+            attribLocations: {
+              vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+            },
+            uniformLocations: {
+              projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+              modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+            },
+          };
+
+
+          const buffers = initBuffers(gl);
+
+          drawScene(gl, programInfo, buffers);
+        }
+
+        // 初始化着色器程序，让WebGL知道我们如何绘制数据
+        function initShaderProgram(gl, vsSource, fsSource) {
+          const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+          const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+          // 创建着色器程序
+          const shaderProgram = gl.createProgram();
+          gl.attachShader(shaderProgram, vertexShader);
+          gl.attachShader(shaderProgram, fragmentShader);
+          gl.linkProgram(shaderProgram);
+
+          // 创建失败 报错提示
+          if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("unalbe initialize the shader program:" + gl.getProgramInfoLog(shaderProgram));
+            return null
+          }
+
+          return shaderProgram;
+        }
+
+        // 创建制定类型的着色器，上传source源码并编译
+        function loadShader(gl, type, source) {
+          const shader = gl.createShader(type);
+
+          // 将source给shader
+          gl.shaderSource(shader, source);
+          // 编译shader
+          gl.compileShader(shader);
+
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert("compile error" + gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+            return null;
+          }
+
+          return shader;
+        }
+
+
+        // 创建缓冲器来存储顶点
+        function initBuffers(gl) {
+          // 得到缓冲对象 并存储在顶点缓冲器
+          const positionBuffer = gl.createBuffer();
+          // 绑定上下文
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+          const positions = [
+             1.0,  1.0,
+            -1.0,  1.0,
+             1.0, -1.0,
+            -1.0, -1.0,
+          ];
+
+          gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array(positions),
+            gl.STATIC_DRAW
+          );
+        
+          return {
+            position: positionBuffer,
+          };
+        }
+
+        function drawScene(gl, programInfo, buffers) {
+          // 用背景色擦除画布
+          // 黑底清除
+          gl.clearColor(0.0, 0.0, 0.0, 1.0);
+          // 清除一切物体
+          gl.clearDepth(1.0);
+          // 开启深度测试
+          gl.enable(gl.DEPTH_TEST);
+          // 近处的遮盖远处的
+          gl.depthFunc(gl.LEQUAL);
+
+          // 清除canvas
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+
+          // 建立摄像机透视矩阵
+          // 创建一个用于模拟相机中透视的透视矩阵
+          // 初始化一些值
+          const fieldOfView = 45 * Math.PI / 180;   // in radians
+          const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+          const zNear = 0.1;
+          const zFar = 100.0;
+          const projectionMatrix = mat4.create();
+
+          mat4.perspective(
+            projectionMatrix,
+            fieldOfView,
+            aspect,
+            zNear,
+            zFar,
+          );
+
+
+          // 加载特定位置，将正方形放在距离摄像机6各单位的位置
+          // 将绘图位置设置为中心店
+          const modelViewMatrix = mat4.create();
+          // 移动
+          mat4.translate(
+            modelViewMatrix,    // 目标矩阵
+            modelViewMatrix,    // 转换矩阵
+            [-0.0, 0.0, -6.0],  //  值
+          )
+
+          {
+            const numComponents = 2;
+            const type = gl.FLOAT;
+            const normalize = false;
+            const stride = 0;
+            const offset = 0;
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+            gl.vertexAttribPointer(
+              programInfo.attribLocations.vertexPosition,
+              numComponents,
+              type,
+              normalize,
+              stride,
+              offset
+            );
+            gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+          }
+
+
+
+          gl.useProgram(programInfo.program);
+          gl.uniformMatrix4fv(
+            programInfo.uniformLocations.projectionMatrix,
+            false,
+            projectionMatrix,
+          )
+          gl.uniformMatrix4fv(
+            programInfo.uniformLocations.modelViewMatrix,
+            false,
+            modelViewMatrix);
+
+          {
+            const offset = 0;
+            const vertexCount = 4;
+            gl.drawArrays(gl.TRIANGLE_STRIP, offset, vertexCount);
+          }
+
+        }
       </script>
     </div>
   </body>
