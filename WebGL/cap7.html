@@ -31,6 +31,7 @@
           // 顶点着色器会在形状的每个顶点运行，讲输入顶点从原始坐标系转换到WebGL使用的缩放空间clipspace坐标系，-1.0-1.0不考虑纵横比，实际尺寸或其他因素
           // 决定哪个纹理坐标可以应用于顶点，通过法线来确定应用到顶点的光照因子等
           // 最后的值给到gl_Position
+          // 更新顶点着色器，让它给每个基于环境光和方向光的顶点的一个着色器值
           const vsSource = `
             attribute vec4 aVertexPosition;
             attribute vec3 aVertexNormal;
@@ -206,7 +207,7 @@
 
           const normalBuffer = gl.createBuffer();
           gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
-
+          // 存放立方体所有顶点的法线
           const vertexNormals = [
             // Front
             0.0,  0.0,  1.0,
